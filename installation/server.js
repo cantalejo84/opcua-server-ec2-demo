@@ -17,17 +17,14 @@ function post_initialize() {
     const addressSpace = server.engine.addressSpace;
     const namespace = addressSpace.getOwnNamespace();
     
-    // Crear carpeta de simulación
-    const devicesFolder = namespace.addFolder(addressSpace.rootFolder.objects, {
+    // Crear carpeta de simulación - FIX: usar addressSpace.findNode en lugar de rootFolder
+    const objectsFolder = addressSpace.findNode("ns=0;i=85"); // ObjectsFolder standard
+    
+    const devicesFolder = namespace.addFolder(objectsFolder, {
         browseName: "Simulation"
     });
     
-    // ========================================
-    // VARIABLES SIMULADAS
-    // ========================================
-    // Puedes modificar estas variables o añadir más según tus necesidades
-    
-    // 1. Temperatura (oscila entre 20-30°C)
+    // 1. Temperatura
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "Temperature",
@@ -45,7 +42,7 @@ function post_initialize() {
         }
     });
     
-    // 2. Presión (oscila entre 95-105 bar)
+    // 2. Presión
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "Pressure",
@@ -63,7 +60,7 @@ function post_initialize() {
         }
     });
     
-    // 3. Velocidad del ventilador (800-1200 RPM)
+    // 3. FanSpeed
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "FanSpeed",
@@ -81,7 +78,7 @@ function post_initialize() {
         }
     });
     
-    // 4. Velocidad de la bomba (500-700 RPM)
+    // 4. PumpSpeed
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "PumpSpeed",
@@ -99,7 +96,7 @@ function post_initialize() {
         }
     });
     
-    // 5. Nivel de tanque (40-80%)
+    // 5. TankLevel
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "TankLevel",
@@ -117,7 +114,7 @@ function post_initialize() {
         }
     });
     
-    // 6. Estado de la máquina (cambia cada 15 segundos)
+    // 6. MachineState
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "MachineState",
@@ -135,7 +132,7 @@ function post_initialize() {
         }
     });
     
-    // 7. Contador (incrementa cada segundo)
+    // 7. Counter
     let counter = 0;
     setInterval(() => { counter++; }, 1000);
     
@@ -154,7 +151,7 @@ function post_initialize() {
         }
     });
     
-    // 8. Timestamp del servidor
+    // 8. ServerTime
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "ServerTime",
@@ -181,7 +178,6 @@ function post_initialize() {
     console.log("  - ServerTime");
 }
 
-// Inicializar y arrancar el servidor
 server.initialize(post_initialize);
 
 server.start(function(err) {
@@ -198,12 +194,10 @@ server.start(function(err) {
     console.log("Endpoint: opc.tcp://0.0.0.0:4840/UA/DemoServer");
     console.log("");
     console.log("Esperando conexiones de clientes...");
-    console.log("Presiona Ctrl+C para detener");
     console.log("========================================");
     console.log("");
 });
 
-// Manejo de cierre graceful
 process.on('SIGINT', function() {
     console.log("\n\n🛑 Cerrando servidor...");
     server.shutdown(function() {
