@@ -1,0 +1,482 @@
+AWSTemplateFormatVersion: '2010-09-09'
+Description: 'EC2 instance with OPC UA demo server'
+
+Parameters:
+  InstanceType:
+    Description: EC2 instance type
+    Type: String
+    Default: t3.small
+    AllowedValues:
+      - t3.micro
+      - t3.small
+      - t3.medium
+    ConstraintDescription: Must be a valid EC2 instance type
+
+  #KeyName:
+  #  Description: Name of an existing EC2 KeyPair to enable SSH access
+  #  Type: AWS::EC2::KeyPair::KeyName
+  #  ConstraintDescription: Must be the name of an existing EC2 KeyPair
+
+  #SSHLocation:
+  #  Description: IP address range that can SSH to the EC2 instance
+  #  Type: String
+  #  Default: 0.0.0.0/0
+  #  AllowedPattern: (\d{1,3})\.(\d{1,3})\.(\d{1,3})\.(\d{1,3})/(\d{1,2})
+  #  ConstraintDescription: Must be a valid IP CIDR range of the form x.x.x.x/x
+
+Mappings:
+  AWSRegionToAMI:
+    us-east-1:
+      AMI: ami-0c02fb55b2b312dba  # Amazon Linux 2023
+    us-west-2:
+      AMI: ami-0a85857bfc5345c38  # Amazon Linux 2023
+    eu-west-1:
+      AMI: ami-0d940f23d527c3ab1  # Amazon Linux 2023
+    eu-central-1:
+      AMI: ami-0084a47cc718c111a  # Amazon Linux 2023
+
+Resources:
+  OPCUASecurityGroup:
+    Type: AWS::EC2::SecurityGroup
+    Properties:
+      GroupDescription: Security group for OPC UA server
+      SecurityGroupIngress:
+        - IpProtocol: tcp
+          FromPort: 4840
+          ToPort: 4840
+          CidrIp: 0.0.0.0/0
+          Description: OPC UA server port
+      Tags:
+        - Key: Name
+          Value: opcua-server-security-group
+
+  OPCUAServer:
+    Type: AWS::EC2::Instance
+    Properties:
+      InstanceType: !Ref InstanceType
+      KeyName: !Ref KeyName
+      ImageId: !FindInMap [AWSRegionToAMI, !Ref 'AWS::Region', AMI]
+      SecurityGroupIds:
+        - !Ref OPCUASecurityGroup
+      Tags:
+        - Key: Name
+          Value: opcua-server-demo
+      UserData:
+        Fn::Base64: !Sub |
+          #!/bin/bash
+          set -e
+          
+          # Log de inicio
+          exec > >(tee /var/log/user-data.log)
+          exec 2>&1
+          
+          echo "=== Iniciando instalación del servidor OPC UA ==="
+          date
+          
+          # Actualizar el sistema
+          echo "Actualizando sistema..."
+          yum update -y
+          
+          # Instalar Node.js (necesario para node-opcua)
+          echo "Instalando Node.js..."
+          curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
+          yum install -y nodejs
+          
+          # Verificar instalación
+          node --version
+          npm --version
+          
+          # Crear directorio para el servidor
+          echo "Creando directorio de trabajo..."
+          mkdir -p /opt/opcua-server
+          cd /opt/opcua-server
+          
+          # Inicializar proyecto npm
+          echo "Inicializando proyecto Node.js..."
+          cat > package.json << 'PACKAGE_EOF'
+          {
+            "name": "opcua-demo-server",
+            "version": "1.0.0",
+            "description": "Servidor OPC UA demo con datos simulados",
+            "main": "server.js",
+            "scripts": {
+              "start": "node server.js"
+            },
+            "dependencies": {
+              "node-opcua": "^2.119.0"
+            }
+          }
+          PACKAGE_EOF
+          
+          # Instalar dependencias
+          echo "Instalando node-opcua..."
+          npm install
+          
+          # Crear el servidor OPC UA con datos simulados
+          echo "Creando servidor OPC UA..."
+          cat > server.js << 'SERVER_EOF'
+          const opcua = require("node-opcua");
+          
+          // Crear el servidor
+          const server = new opcua.OPCUAServer({
+              port: 4840,
+              resourcePath: "/UA/DemoServer",
+              buildInfo: {
+                  productName: "Demo OPC UA Server",
+                  buildNumber: "1.0.0",
+                  buildDate: new Date()
+              }
+          });
+          
+          function post_initialize() {
+              console.log("Servidor inicializado");
+              
+              const addressSpace = server.engine.addressSpace;
+              const namespace = addressSpace.getOwnNamespace();
+              
+              // Crear carpeta de simulación
+              const devicesFolder = namespace.addFolder(addressSpace.rootFolder.objects, {
+                  browseName: "Simulation"
+              });
+              
+              // Variables simuladas que cambian en tiempo real
+              
+              // 1. Temperatura (oscila entre 20-30°C)
+              const temperature = namespace.addVariable({
+                  componentOf: devicesFolder,
+                  browseName: "Temperature",
+                  displayName: "Temperature",
+                  dataType: "Double",
+                  value: {
+                      get: function() {
+                          const baseTemp = 25.0;
+                          const variation = 5.0 * Math.sin(Date.now() / 5000);
+                          return new opcua.Variant({
+                              dataType: opcua.DataType.Double,
+                              value: baseTemp + variation
+                          });
+                      }
+                  }
+              });
+              
+              // 2. Presión (oscila entre 95-105 bar)
+              const pressure = namespace.addVariable({
+                  componentOf: devicesFolder,
+                  browseName: "Pressure",
+                  displayName: "Pressure",
+                  dataType: "Double",
+                  value: {
+                      get: function() {
+                          const basePressure = 100.0;
+                          const variation = 5.0 * Math.cos(Date.now() / 7000);
+                          return new opcua.Variant({
+                              dataType: opcua.DataType.Double,
+                              value: basePressure + variation
+                          });
+                      }
+                  }
+              });
+              
+              // 3. Velocidad del ventilador (oscila entre 800-1200 RPM)
+              const fanSpeed = namespace.addVariable({
+                  componentOf: devicesFolder,
+                  browseName: "FanSpeed",
+                  displayName: "Fan Speed (RPM)",
+                  dataType: "Int32",
+                  value: {
+                      get: function() {
+                          const baseSpeed = 1000;
+                          const variation = Math.floor(200 * Math.sin(Date.now() / 3000));
+                          return new opcua.Variant({
+                              dataType: opcua.DataType.Int32,
+                              value: baseSpeed + variation
+                          });
+                      }
+                  }
+              });
+              
+              // 4. Velocidad de la bomba (oscila entre 500-700 RPM)
+              const pumpSpeed = namespace.addVariable({
+                  componentOf: devicesFolder,
+                  browseName: "PumpSpeed",
+                  displayName: "Pump Speed (RPM)",
+                  dataType: "Int32",
+                  value: {
+                      get: function() {
+                          const baseSpeed = 600;
+                          const variation = Math.floor(100 * Math.cos(Date.now() / 4000));
+                          return new opcua.Variant({
+                              dataType: opcua.DataType.Int32,
+                              value: baseSpeed + variation
+                          });
+                      }
+                  }
+              });
+              
+              // 5. Nivel de tanque (oscila entre 40-80%)
+              const tankLevel = namespace.addVariable({
+                  componentOf: devicesFolder,
+                  browseName: "TankLevel",
+                  displayName: "Tank Level (%)",
+                  dataType: "Double",
+                  value: {
+                      get: function() {
+                          const baseLevel = 60.0;
+                          const variation = 20.0 * Math.sin(Date.now() / 10000);
+                          return new opcua.Variant({
+                              dataType: opcua.DataType.Double,
+                              value: baseLevel + variation
+                          });
+                      }
+                  }
+              });
+              
+              // 6. Estado de la máquina (alterna entre estados)
+              const machineState = namespace.addVariable({
+                  componentOf: devicesFolder,
+                  browseName: "MachineState",
+                  displayName: "Machine State",
+                  dataType: "String",
+                  value: {
+                      get: function() {
+                          const states = ["Running", "Idle", "Maintenance", "Stopped"];
+                          const index = Math.floor(Date.now() / 15000) % states.length;
+                          return new opcua.Variant({
+                              dataType: opcua.DataType.String,
+                              value: states[index]
+                          });
+                      }
+                  }
+              });
+              
+              // 7. Contador que incrementa continuamente
+              let counter = 0;
+              setInterval(() => { counter++; }, 1000);
+              
+              const counterVar = namespace.addVariable({
+                  componentOf: devicesFolder,
+                  browseName: "Counter",
+                  displayName: "Counter",
+                  dataType: "Int32",
+                  value: {
+                      get: function() {
+                          return new opcua.Variant({
+                              dataType: opcua.DataType.Int32,
+                              value: counter
+                          });
+                      }
+                  }
+              });
+              
+              // 8. Timestamp del servidor
+              const timestamp = namespace.addVariable({
+                  componentOf: devicesFolder,
+                  browseName: "ServerTime",
+                  displayName: "Server Time",
+                  dataType: "DateTime",
+                  value: {
+                      get: function() {
+                          return new opcua.Variant({
+                              dataType: opcua.DataType.DateTime,
+                              value: new Date()
+                          });
+                      }
+                  }
+              });
+              
+              console.log("Variables simuladas creadas:");
+              console.log("- Temperature (°C)");
+              console.log("- Pressure (bar)");
+              console.log("- FanSpeed (RPM)");
+              console.log("- PumpSpeed (RPM)");
+              console.log("- TankLevel (%)");
+              console.log("- MachineState");
+              console.log("- Counter");
+              console.log("- ServerTime");
+          }
+          
+          // Iniciar servidor
+          server.initialize(post_initialize);
+          
+          server.start(function() {
+              console.log("\n========================================");
+              console.log("Servidor OPC UA iniciado correctamente");
+              console.log("========================================");
+              console.log("Puerto:", server.endpoints[0].port);
+              console.log("Endpoint:", server.endpoints[0].endpointDescriptions()[0].endpointUrl);
+              console.log("\nEsperando conexiones de clientes...\n");
+          });
+          
+          // Manejo de errores
+          process.on('SIGINT', function() {
+              console.log("\nCerrando servidor...");
+              server.shutdown(function() {
+                  console.log("Servidor cerrado correctamente");
+                  process.exit(0);
+              });
+          });
+          SERVER_EOF
+          
+          # Cambiar permisos
+          chown -R ec2-user:ec2-user /opt/opcua-server
+          
+          # Crear servicio systemd para que inicie automáticamente
+          echo "Creando servicio systemd..."
+          cat > /etc/systemd/system/opcua-server.service << 'SERVICE_EOF'
+          [Unit]
+          Description=OPC UA Demo Server
+          After=network.target
+          
+          [Service]
+          Type=simple
+          User=ec2-user
+          WorkingDirectory=/opt/opcua-server
+          ExecStart=/usr/bin/node /opt/opcua-server/server.js
+          Restart=always
+          RestartSec=10
+          StandardOutput=journal
+          StandardError=journal
+          
+          [Install]
+          WantedBy=multi-user.target
+          SERVICE_EOF
+          
+          # Habilitar e iniciar el servicio
+          echo "Iniciando servicio OPC UA..."
+          systemctl daemon-reload
+          systemctl enable opcua-server
+          systemctl start opcua-server
+          
+          # Esperar a que el servidor inicie
+          sleep 5
+          
+          # Verificar estado
+          systemctl status opcua-server --no-pager
+          
+          # Crear scripts de ayuda
+          cat > /home/ec2-user/check-opcua.sh << 'CHECK_EOF'
+          #!/bin/bash
+          echo "=== Estado del Servidor OPC UA ==="
+          systemctl status opcua-server --no-pager
+          echo ""
+          echo "=== Últimas 20 líneas del log ==="
+          journalctl -u opcua-server -n 20 --no-pager
+          CHECK_EOF
+          
+          cat > /home/ec2-user/restart-opcua.sh << 'RESTART_EOF'
+          #!/bin/bash
+          echo "Reiniciando servidor OPC UA..."
+          sudo systemctl restart opcua-server
+          sleep 2
+          systemctl status opcua-server --no-pager
+          RESTART_EOF
+          
+          cat > /home/ec2-user/logs-opcua.sh << 'LOGS_EOF'
+          #!/bin/bash
+          echo "Mostrando logs en tiempo real (Ctrl+C para salir)..."
+          journalctl -u opcua-server -f
+          LOGS_EOF
+          
+          chmod +x /home/ec2-user/*.sh
+          chown ec2-user:ec2-user /home/ec2-user/*.sh
+          
+          # Crear archivo informativo
+          cat > /home/ec2-user/OPCUA_INFO.txt << 'INFO_EOF'
+          ========================================
+          SERVIDOR OPC UA DEMO - INFORMACIÓN
+          ========================================
+          
+          🚀 SERVIDOR: Node OPC UA
+          📡 PUERTO: 4840
+          🔗 ENDPOINT: opc.tcp://IP_PUBLICA:4840/UA/DemoServer
+          
+          📊 VARIABLES SIMULADAS DISPONIBLES:
+          
+          En: Objects/Simulation/
+          
+          1. Temperature (°C)
+             - Tipo: Double
+             - Oscila entre 20-30°C
+             - Cambia continuamente
+          
+          2. Pressure (bar)
+             - Tipo: Double
+             - Oscila entre 95-105 bar
+             - Cambia continuamente
+          
+          3. FanSpeed (RPM)
+             - Tipo: Int32
+             - Oscila entre 800-1200 RPM
+             - Cambia continuamente
+          
+          4. PumpSpeed (RPM)
+             - Tipo: Int32
+             - Oscila entre 500-700 RPM
+             - Cambia continuamente
+          
+          5. TankLevel (%)
+             - Tipo: Double
+             - Oscila entre 40-80%
+             - Cambia continuamente
+          
+          6. MachineState
+             - Tipo: String
+             - Estados: Running, Idle, Maintenance, Stopped
+             - Cambia cada 15 segundos
+          
+          7. Counter
+             - Tipo: Int32
+             - Incrementa cada segundo
+          
+          8. ServerTime
+             - Tipo: DateTime
+             - Hora actual del servidor
+          
+          🔧 COMANDOS DISPONIBLES:
+          
+          ./check-opcua.sh    - Ver estado del servidor
+          ./logs-opcua.sh     - Ver logs en tiempo real
+          ./restart-opcua.sh  - Reiniciar el servidor
+          
+          sudo systemctl status opcua-server   - Estado
+          sudo systemctl stop opcua-server     - Detener
+          sudo systemctl start opcua-server    - Iniciar
+          sudo systemctl restart opcua-server  - Reiniciar
+          
+          📱 CÓMO CONECTAR:
+          
+          1. Usa un cliente OPC UA (UaExpert, Prosys, etc.)
+          2. Endpoint: opc.tcp://IP_PUBLICA:4840/UA/DemoServer
+          3. Seguridad: None (Anonymous)
+          4. Navega a: Objects → Simulation
+          5. Suscríbete a las variables para verlas en tiempo real
+          
+          ========================================
+          INFO_EOF
+          
+          chown ec2-user:ec2-user /home/ec2-user/OPCUA_INFO.txt
+          
+          echo "=== Instalación completada ==="
+          date
+          echo "Servidor OPC UA iniciado en puerto 4840"
+
+Outputs:
+  InstanceId:
+    Description: Instance ID of the OPC UA server
+    Value: !Ref OPCUAServer
+    
+  PublicIP:
+    Description: Public IP address of the OPC UA server
+    Value: !GetAtt OPCUAServer.PublicIp
+    
+  OPCUAEndpoint:
+    Description: OPC UA server endpoint URL
+    Value: !Sub 'opc.tcp://${OPCUAServer.PublicIp}:4840/UA/DemoServer'
+    
+  #SSHCommand:
+  #  Description: SSH command to connect to the instance
+  #  Value: !Sub 'ssh -i ${KeyName}.pem ec2-user@${OPCUAServer.PublicIp}'
+    
+  CheckServerStatus:
+    Description: Command to check server status (after SSH)
+    Value: './check-opcua.sh'
