@@ -12,9 +12,9 @@ Parameters:
       - t3.medium
     ConstraintDescription: Must be a valid EC2 instance type
 
-ImageId:
-  Type: String
-  Default: ami-080ecf65f4d838a6e  # Amazon Linux 2023
+  ImageId:
+    Type: String
+    Default: ami-080ecf65f4d838a6e  # Amazon Linux 2023
 
 
 Resources:
