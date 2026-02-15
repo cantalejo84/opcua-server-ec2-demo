@@ -16,21 +16,23 @@ function post_initialize() {
     const addressSpace = server.engine.addressSpace;
     const namespace = addressSpace.getOwnNamespace();
     
-    // Obtener ObjectsFolder de forma correcta
-    const objectsFolder = addressSpace.rootFolder.objects;
+    // Usar el método correcto para obtener Objects folder
+    const objectsNode = addressSpace.findNode("i=85");
     
-    // Crear carpeta Simulation con typeDefinition correcto
-    const devicesFolder = namespace.addFolder(objectsFolder, {
-        browseName: "Simulation",
-        nodeId: "s=Simulation",
-        typeDefinition: "FolderType"
+    if (!objectsNode) {
+        console.error("❌ No se pudo encontrar el nodo Objects");
+        return;
+    }
+    
+    // Crear carpeta Simulation
+    const devicesFolder = namespace.addFolder(objectsNode, {
+        browseName: "Simulation"
     });
     
     // Variables simuladas
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "Temperature",
-        nodeId: "s=Temperature",
         dataType: "Double",
         value: {
             get: () => new opcua.Variant({
@@ -43,7 +45,6 @@ function post_initialize() {
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "Pressure",
-        nodeId: "s=Pressure",
         dataType: "Double",
         value: {
             get: () => new opcua.Variant({
@@ -56,7 +57,6 @@ function post_initialize() {
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "FanSpeed",
-        nodeId: "s=FanSpeed",
         dataType: "Int32",
         value: {
             get: () => new opcua.Variant({
@@ -69,7 +69,6 @@ function post_initialize() {
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "PumpSpeed",
-        nodeId: "s=PumpSpeed",
         dataType: "Int32",
         value: {
             get: () => new opcua.Variant({
@@ -82,7 +81,6 @@ function post_initialize() {
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "TankLevel",
-        nodeId: "s=TankLevel",
         dataType: "Double",
         value: {
             get: () => new opcua.Variant({
@@ -95,7 +93,6 @@ function post_initialize() {
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "MachineState",
-        nodeId: "s=MachineState",
         dataType: "String",
         value: {
             get: () => {
@@ -114,7 +111,6 @@ function post_initialize() {
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "Counter",
-        nodeId: "s=Counter",
         dataType: "Int32",
         value: {
             get: () => new opcua.Variant({
@@ -127,7 +123,6 @@ function post_initialize() {
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "ServerTime",
-        nodeId: "s=ServerTime",
         dataType: "DateTime",
         value: {
             get: () => new opcua.Variant({
