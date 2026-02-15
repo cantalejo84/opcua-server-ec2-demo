@@ -16,7 +16,6 @@ function post_initialize() {
     const addressSpace = server.engine.addressSpace;
     const namespace = addressSpace.getOwnNamespace();
     
-    // Usar el método correcto para obtener Objects folder
     const objectsNode = addressSpace.findNode("i=85");
     
     if (!objectsNode) {
@@ -24,12 +23,10 @@ function post_initialize() {
         return;
     }
     
-    // Crear carpeta Simulation
     const devicesFolder = namespace.addFolder(objectsNode, {
         browseName: "Simulation"
     });
     
-    // Variables simuladas
     namespace.addVariable({
         componentOf: devicesFolder,
         browseName: "Temperature",
