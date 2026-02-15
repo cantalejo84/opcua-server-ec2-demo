@@ -86,6 +86,30 @@ Resources:
           echo "Actualizando sistema..."
           yum update -y
           
+          # Verificar e instalar SSM Agent (crítico para conectividad)
+          echo "=== Configurando SSM Agent ==="
+          
+          # En Amazon Linux 2023, SSM Agent viene preinstalado
+          # Pero vamos a asegurarnos que esté actualizado y corriendo
+          
+          if systemctl is-active --quiet amazon-ssm-agent; then
+            echo "SSM Agent ya está corriendo"
+          else
+            echo "Instalando/Actualizando SSM Agent..."
+            yum install -y amazon-ssm-agent
+          fi
+          
+          # Asegurar que SSM Agent esté habilitado y corriendo
+          systemctl enable amazon-ssm-agent
+          systemctl restart amazon-ssm-agent
+          
+          # Verificar estado
+          systemctl status amazon-ssm-agent --no-pager
+          
+          # Esperar a que SSM Agent se registre (importante)
+          echo "Esperando registro de SSM Agent..."
+          sleep 30
+          
           # Instalar Node.js (necesario para node-opcua)
           echo "Instalando Node.js..."
           curl -fsSL https://rpm.nodesource.com/setup_20.x | bash -
@@ -307,12 +331,17 @@ Resources:
           // Iniciar servidor
           server.initialize(post_initialize);
           
-          server.start(function() {
+          server.start(function(err) {
+              if (err) {
+                  console.error("Error al iniciar servidor:", err);
+                  process.exit(1);
+              }
+              
               console.log("\n========================================");
               console.log("Servidor OPC UA iniciado correctamente");
               console.log("========================================");
-              console.log("Puerto:", server.endpoints[0].port);
-              console.log("Endpoint:", server.endpoints[0].endpointDescriptions()[0].endpointUrl);
+              console.log("Puerto: 4840");
+              console.log("Endpoint: opc.tcp://0.0.0.0:4840/UA/DemoServer");
               console.log("\nEsperando conexiones de clientes...\n");
           });
           
@@ -467,7 +496,7 @@ Resources:
           
           echo "=== Instalación completada ==="
           date
-          echo "Servidor OPC UA iniciado en puerto 4840"
+          echo "Servidor OPC UA iniciado en puerto 4840"  
 
 Outputs:
   InstanceId:
