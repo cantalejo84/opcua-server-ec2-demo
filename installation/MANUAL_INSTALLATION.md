@@ -59,47 +59,74 @@ Esto instala:
 - node-opcua npm package
 - Estructura de directorios en `/opt/opcua-server`
 
-### 5. Personalizar el Servidor (OPCIONAL)
+### 5. Copiar server.js al Directorio del Servidor
 
-Ahora puedes modificar el servidor a tu gusto:
+**Este paso es OBLIGATORIO** - Copia el archivo `server.js` a `/opt/opcua-server/`:
 
 ```bash
-cd /opt/opcua-server
+# Copiar server.js
+sudo cp /tmp/opcua-install/server.js /opt/opcua-server/server.js
+sudo chown ec2-user:ec2-user /opt/opcua-server/server.js
 
+# Verificar que se copió correctamente
+ls -la /opt/opcua-server/server.js
+```
+
+### 6. Personalizar el Servidor (OPCIONAL)
+
+Si quieres modificar las variables simuladas, ahora es el momento:
+
+```bash
 # Editar el servidor
-sudo nano server.js
+sudo nano /opt/opcua-server/server.js
 ```
 
 **Ejemplos de modificaciones:**
 - Cambiar variables simuladas
 - Añadir nuevas variables
-- Cambiar rangos de valores
+- Cambiar rangos de valores (ej: temperatura de 0-100°C en lugar de 20-30°C)
 - Modificar frecuencias de actualización
 - Añadir lógica personalizada
 
-### 6. Copiar server.js Personalizado
-
-```bash
-# Si modificaste server.js localmente, cópialo
-sudo cp /tmp/opcua-install/server.js /opt/opcua-server/server.js
-sudo chown ec2-user:ec2-user /opt/opcua-server/server.js
-```
+Después de editar, guarda con `Ctrl+O`, Enter, `Ctrl+X`.
 
 ### 7. Generar Certificados SSL
 
 ⚠️ **IMPORTANTE:** Los certificados son **obligatorios** incluso para modo demo. La versión actual de node-opcua (2.119.0) requiere certificados para iniciar el servidor, aunque el cliente pueda conectar sin seguridad (modo None/Anonymous).
 
 ```bash
-# Como ec2-user (NO root)
-su - ec2-user
+# Generar certificados como usuario actual (ssm-user)
 cd /tmp/opcua-install
 bash create-certificates.sh
 ```
 
-Esto genera certificados autofirmados en:
+Esto genera certificados en `~/.config/node-opcua-default-nodejs/PKI/own/`
+
+**Copiar certificados para ec2-user:**
+
+Como el servicio systemd corre como `ec2-user`, necesitas copiar los certificados:
+
+```bash
+# Crear directorios para ec2-user
+sudo mkdir -p /home/ec2-user/.config/node-opcua-default-nodejs/PKI/own/certs
+sudo mkdir -p /home/ec2-user/.config/node-opcua-default-nodejs/PKI/own/private
+
+# Copiar certificados
+sudo cp ~/.config/node-opcua-default-nodejs/PKI/own/certs/certificate.pem \
+   /home/ec2-user/.config/node-opcua-default-nodejs/PKI/own/certs/
+
+sudo cp ~/.config/node-opcua-default-nodejs/PKI/own/private/private_key.pem \
+   /home/ec2-user/.config/node-opcua-default-nodejs/PKI/own/private/
+
+# Asignar permisos correctos
+sudo chown -R ec2-user:ec2-user /home/ec2-user/.config
 ```
-~/.config/node-opcua-default-nodejs/PKI/own/certs/certificate.pem
-~/.config/node-opcua-default-nodejs/PKI/own/private/private_key.pem
+
+**Verificar que se copiaron correctamente:**
+
+```bash
+sudo ls -la /home/ec2-user/.config/node-opcua-default-nodejs/PKI/own/certs/
+sudo ls -la /home/ec2-user/.config/node-opcua-default-nodejs/PKI/own/private/
 ```
 
 **Nota:** El servidor tendrá certificados, pero aceptará conexiones sin seguridad desde clientes (modo None/Anonymous). El cliente NO necesita tener su propio certificado.
@@ -107,9 +134,7 @@ Esto genera certificados autofirmados en:
 ### 8. Configurar Servicio Systemd
 
 ```bash
-# Volver a root
-exit  # o Ctrl+D
-
+# Ejecutar como root
 cd /tmp/opcua-install
 sudo bash setup-service.sh
 ```
@@ -212,6 +237,20 @@ sudo systemctl status opcua-server
 
 ## 🆘 Troubleshooting
 
+### Error: Cannot find module '/opt/opcua-server/server.js'
+
+Olvidaste copiar el archivo `server.js`:
+
+```bash
+# Copiar server.js
+sudo cp /tmp/opcua-install/server.js /opt/opcua-server/server.js
+sudo chown ec2-user:ec2-user /opt/opcua-server/server.js
+
+# Reiniciar servicio
+sudo systemctl restart opcua-server
+sudo systemctl status opcua-server
+```
+
 ### El servicio no inicia
 
 ```bash
@@ -225,10 +264,28 @@ node server.js
 
 ### Certificados no encontrados
 
+Si el servicio falla con error de certificados:
+
 ```bash
-# Regenerar como ec2-user
-su - ec2-user
-bash /tmp/opcua-install/create-certificates.sh
+# Verificar que existen para ec2-user
+sudo ls -la /home/ec2-user/.config/node-opcua-default-nodejs/PKI/own/certs/
+sudo ls -la /home/ec2-user/.config/node-opcua-default-nodejs/PKI/own/private/
+
+# Si no existen, regenerar y copiar
+cd /tmp/opcua-install
+bash create-certificates.sh
+
+# Copiar para ec2-user
+sudo mkdir -p /home/ec2-user/.config/node-opcua-default-nodejs/PKI/own/certs
+sudo mkdir -p /home/ec2-user/.config/node-opcua-default-nodejs/PKI/own/private
+
+sudo cp ~/.config/node-opcua-default-nodejs/PKI/own/certs/certificate.pem \
+   /home/ec2-user/.config/node-opcua-default-nodejs/PKI/own/certs/
+
+sudo cp ~/.config/node-opcua-default-nodejs/PKI/own/private/private_key.pem \
+   /home/ec2-user/.config/node-opcua-default-nodejs/PKI/own/private/
+
+sudo chown -R ec2-user:ec2-user /home/ec2-user/.config
 ```
 
 ### Puerto 4840 ocupado
