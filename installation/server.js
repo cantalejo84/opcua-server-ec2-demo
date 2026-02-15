@@ -10,22 +10,19 @@ const server = new opcua.OPCUAServer({
     }
 });
 
-function post_initialize() {
+server.on("post_initialize", function() {
     console.log("✓ Servidor inicializado");
     
     const addressSpace = server.engine.addressSpace;
     const namespace = addressSpace.getOwnNamespace();
     
-    const objectsNode = addressSpace.findNode("i=85");
-    
-    if (!objectsNode) {
-        console.error("❌ No se pudo encontrar el nodo Objects");
-        return;
-    }
-    
-    const devicesFolder = namespace.addFolder(objectsNode, {
+    // Usar el método directo para agregar objetos al namespace
+    const devicesFolder = namespace.addObject({
+        organizedBy: addressSpace.rootFolder.objects,
         browseName: "Simulation"
     });
+    
+    console.log("✓ Carpeta Simulation creada");
     
     namespace.addVariable({
         componentOf: devicesFolder,
@@ -129,10 +126,8 @@ function post_initialize() {
         }
     });
     
-    console.log("✓ Variables creadas: Temperature, Pressure, FanSpeed, PumpSpeed, TankLevel, MachineState, Counter, ServerTime");
-}
-
-server.initialize(post_initialize);
+    console.log("✓ 8 variables creadas exitosamente");
+});
 
 server.start(err => {
     if (err) {
