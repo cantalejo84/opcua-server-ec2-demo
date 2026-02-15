@@ -12,16 +12,10 @@ Parameters:
       - t3.medium
     ConstraintDescription: Must be a valid EC2 instance type
 
-Mappings:
-  AWSRegionToAMI:
-    us-east-1:
-      AMI: ami-0c02fb55b2b312dba  # Amazon Linux 2023
-    us-west-2:
-      AMI: ami-0a85857bfc5345c38  # Amazon Linux 2023
-    eu-west-1:
-      AMI: ami-0d940f23d527c3ab1  # Amazon Linux 2023
-    eu-central-1:
-      AMI: ami-0084a47cc718c111a  # Amazon Linux 2023
+ImageId:
+  Type: String
+  Default: ami-080ecf65f4d838a6e  # Amazon Linux 2023
+
 
 Resources:
 
@@ -69,7 +63,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref InstanceType
-      ImageId: !FindInMap [AWSRegionToAMI, !Ref 'AWS::Region', AMI]
+      ImageId: !Ref ImageId
       IamInstanceProfile: !Ref OPCUAInstanceProfile
       SecurityGroupIds:
         - !Ref OPCUASecurityGroup

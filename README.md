@@ -3,12 +3,14 @@
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](https://opensource.org/licenses/MIT)
 [![CloudFormation](https://img.shields.io/badge/AWS-CloudFormation-orange.svg)](https://aws.amazon.com/cloudformation/)
 [![OPC UA](https://img.shields.io/badge/OPC--UA-Enabled-blue.svg)](https://opcfoundation.org/)
+[![GitHub Actions](https://img.shields.io/badge/Deploy-GitHub%20Actions-blue.svg)](https://github.com/features/actions)
 
-CloudFormation template to deploy an OPC UA demo server on AWS EC2 with simulated real-time variables. Perfect for testing, learning, and development.
+Automated deployment of an OPC UA demo server on AWS EC2 using **GitHub Actions**. Features simulated real-time variables for testing, learning, and development.
 
 ## 🎯 Features
 
-- **One-Click Deployment** - Single CloudFormation template
+- **GitHub Actions Deployment** - Automated infrastructure deployment
+- **AWS Systems Manager (SSM)** - Console-only access (no SSH keys needed)
 - **No Docker Required** - Direct Node.js installation for simplicity
 - **8 Simulated Variables** - Temperature, pressure, RPM, tank level, and more
 - **Real-Time Data** - Variables update continuously
@@ -37,32 +39,43 @@ All variables are located under: `Objects/Simulation/`
 ### Prerequisites
 
 - AWS Account
-- EC2 Key Pair (for SSH access)
-- AWS CLI configured (optional)
+- GitHub Account (this repository)
+- AWS credentials with CloudFormation and EC2 permissions
 
-### Deploy via AWS Console
+**Note:** No SSH key pair required! Access is exclusively through AWS Systems Manager (SSM) Console.
 
-1. Download `opcua-ec2-cloudformation.yaml`
-2. Go to [AWS CloudFormation Console](https://console.aws.amazon.com/cloudformation/)
-3. Click **Create stack** → **With new resources**
-4. Upload the template file
-5. Fill in parameters:
-   - **Stack name**: `opcua-demo-server`
-   - **KeyName**: Your EC2 key pair name
-   - **InstanceType**: `t3.small` (recommended)
-   - **SSHLocation**: Your IP or `0.0.0.0/0`
-6. Review and create
+### Deploy via GitHub Actions
 
-### Deploy via AWS CLI
+This project deploys **exclusively through GitHub Actions**. No manual commands needed.
 
-```bash
-aws cloudformation create-stack \
-  --stack-name opcua-demo-server \
-  --template-body file://opcua-ec2-cloudformation.yaml \
-  --parameters \
-    ParameterKey=KeyName,ParameterValue=your-key-pair \
-    ParameterKey=InstanceType,ParameterValue=t3.small
-```
+#### Initial Setup:
+
+1. **Fork or clone this repository**
+
+2. **Configure AWS secrets in GitHub:**
+   - Go to your repository → Settings → Secrets and variables → Actions
+   - Add the following secrets:
+     - `AWS_ACCESS_KEY_ID`: Your AWS Access Key
+     - `AWS_SECRET_ACCESS_KEY`: Your AWS Secret Key
+     - `AWS_REGION`: AWS Region (e.g., `us-east-1`)
+
+3. **Run the workflow:**
+   - Go to the "Actions" tab in your repository
+   - Select the "Deploy OPC UA Server" workflow
+   - Click "Run workflow"
+   - Select the branch (usually `main`)
+   - Click "Run workflow"
+
+4. **Monitor deployment:**
+   - The workflow will create the CloudFormation stack
+   - You can see real-time progress
+   - Upon completion, you'll see outputs (public IP, OPC UA endpoint, etc.)
+
+#### Delete the Stack:
+
+To remove all resources:
+- Run the workflow with the delete option
+- Or manually delete from the CloudFormation Console
 
 ## 🔌 Connect to the Server
 
@@ -106,11 +119,24 @@ Configure the OPC UA client node with your endpoint and start reading variables.
 
 ## 🛠️ Management
 
-### SSH Access
+### Connect via AWS Systems Manager (SSM) - Console Only
 
-```bash
-ssh -i your-key-pair.pem ec2-user@YOUR_PUBLIC_IP
-```
+**Access exclusively through AWS Console. No SSH keys or CLI needed.**
+
+**Steps to connect:**
+1. Go to [EC2 Console](https://console.aws.amazon.com/ec2/)
+2. Select your instance `opcua-demo-server`
+3. Click **Connect** → **Session Manager**
+4. Click **Connect**
+
+Or use the direct link from CloudFormation Outputs: `SSMConsoleURL`
+
+**Benefits of SSM Console Access:**
+- ✅ No SSH key management
+- ✅ No need to open port 22
+- ✅ Session logging and auditing
+- ✅ Works from any browser
+- ✅ IAM-based authentication
 
 ### Helper Scripts (on EC2 instance)
 
@@ -141,13 +167,13 @@ sudo systemctl start opcua-server
 
 ## 📁 Stack Outputs
 
-The CloudFormation stack provides these outputs:
+The CloudFormation stack provides these outputs (visible in GitHub Actions logs and CloudFormation Console):
 
 - **InstanceId** - EC2 instance ID
 - **PublicIP** - Server public IP address
 - **OPCUAEndpoint** - Full OPC UA endpoint URL
-- **SSHCommand** - Ready-to-use SSH command
-- **CheckServerStatus** - Command to verify server status
+- **SSMConsoleURL** - Direct link to connect via AWS Console
+- **CheckServerStatus** - Command to verify server status (after SSM connection)
 
 ## 💰 Cost Estimate
 
@@ -159,29 +185,35 @@ The CloudFormation stack provides these outputs:
 
 ## 🧹 Cleanup
 
+### Via GitHub Actions (Recommended)
+
+Run the workflow with the delete/cleanup option
+
 ### Via AWS Console
 
-1. Go to CloudFormation
-2. Select your stack
+1. Go to [CloudFormation Console](https://console.aws.amazon.com/cloudformation/)
+2. Select your stack `opcua-demo-server`
 3. Click **Delete**
-
-### Via AWS CLI
-
-```bash
-aws cloudformation delete-stack --stack-name opcua-demo-server
-```
+4. Confirm deletion
 
 ## 🔒 Security
 
 ⚠️ **This is a DEMO server** - Not configured for production use.
 
-For production environments:
+**Current Security Features:**
+- ✅ No SSH port exposed (port 22 closed)
+- ✅ SSM access with IAM authentication
+- ✅ Only OPC UA port (4840) open to internet
+- ✅ Egress traffic allowed for SSM communication
+
+For production environments, additionally implement:
 
 - Enable OPC UA authentication and encryption
-- Restrict Security Group to specific IPs
+- Restrict Security Group to specific IPs for OPC UA port
 - Use SSL/TLS certificates
 - Implement proper security policies
-- Use private subnets with VPN/bastion host
+- Deploy in private subnets with VPN/bastion host
+- Enable VPC endpoints for SSM (no internet access needed)
 
 ## 🐛 Troubleshooting
 
