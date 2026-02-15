@@ -54,7 +54,7 @@ Resources:
     Type: AWS::EC2::Instance
     Properties:
       InstanceType: !Ref InstanceType
-      KeyName: !Ref KeyName
+      #KeyName: !Ref KeyName
       ImageId: !FindInMap [AWSRegionToAMI, !Ref 'AWS::Region', AMI]
       SecurityGroupIds:
         - !Ref OPCUASecurityGroup
