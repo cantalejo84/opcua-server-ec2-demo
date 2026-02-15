@@ -154,6 +154,8 @@ Resources:
           const server = new opcua.OPCUAServer({
               port: 4840,
               resourcePath: "/UA/DemoServer",
+              securityModes: [opcua.MessageSecurityMode.None],
+              securityPolicies: [opcua.SecurityPolicy.None],
               buildInfo: {
                   productName: "Demo OPC UA Server",
                   buildNumber: "1.0.0",
