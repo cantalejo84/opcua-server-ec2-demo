@@ -7,15 +7,17 @@
 
 Automated deployment of an OPC UA demo server on AWS EC2 using **GitHub Actions**. Features simulated real-time variables for testing, learning, and development.
 
+**Operating System:** Amazon Linux 2023 (automatically uses the latest AMI)
+
 ## 🎯 Features
 
 - **GitHub Actions Deployment** - Automated infrastructure deployment
+- **Manual Installation** - Full control over OPC UA server configuration
 - **AWS Systems Manager (SSM)** - Console-only access (no SSH keys needed)
 - **No Docker Required** - Direct Node.js installation for simplicity
-- **8 Simulated Variables** - Temperature, pressure, RPM, tank level, and more
+- **8 Simulated Variables** - Temperature, pressure, RPM, tank level, and more (customizable)
 - **Real-Time Data** - Variables update continuously
-- **Auto-Start Service** - Runs automatically via systemd
-- **Ready to Use** - Connect any OPC UA client immediately
+- **Easy Customization** - Modify variables without redeploying infrastructure
 
 ## 📊 Simulated Variables
 
@@ -42,11 +44,11 @@ All variables are located under: `Objects/Simulation/`
 - GitHub Account (this repository)
 - AWS credentials with CloudFormation and EC2 permissions
 
-**Note:** No SSH key pair required! Access is exclusively through AWS Systems Manager (SSM) Console.
+**Note:** This project uses **manual installation** after infrastructure deployment, giving you full flexibility to customize the OPC UA server.
 
-### Deploy via GitHub Actions
+### Step 1: Deploy Infrastructure via GitHub Actions
 
-This project deploys **exclusively through GitHub Actions**. No manual commands needed.
+This project deploys **infrastructure only** through GitHub Actions. The OPC UA server must be installed manually afterward.
 
 #### Initial Setup:
 
@@ -67,15 +69,23 @@ This project deploys **exclusively through GitHub Actions**. No manual commands 
    - Click "Run workflow"
 
 4. **Monitor deployment:**
-   - The workflow will create the CloudFormation stack
-   - You can see real-time progress
-   - Upon completion, you'll see outputs (public IP, OPC UA endpoint, etc.)
+   - The workflow will create the CloudFormation stack (EC2, Security Group, IAM Role)
+   - Upon completion, you'll see outputs (public IP, SSM Console URL)
 
-#### Delete the Stack:
+### Step 2: Install OPC UA Server Manually
 
-To remove all resources:
-- Run the workflow with the delete option
-- Or manually delete from the CloudFormation Console
+After infrastructure deployment, follow the detailed installation guide:
+
+**📖 [Complete Installation Guide →](installation/MANUAL_INSTALLATION.md)**
+
+Quick overview:
+1. Connect to EC2 via SSM Console
+2. Run installation script
+3. Customize `server.js` as needed
+4. Generate certificates
+5. Start the service
+
+This manual approach gives you **full control** to modify variables, add custom logic, and iterate quickly without infrastructure changes.
 
 ## 🔌 Connect to the Server
 
@@ -216,6 +226,39 @@ For production environments, additionally implement:
 - Enable VPC endpoints for SSM (no internet access needed)
 
 ## 🐛 Troubleshooting
+
+### SSM Agent shows "Offline" or "Not connected"
+
+This is the most common issue. **Possible causes:**
+
+1. **Instance has no internet access:**
+   - VPC needs an **Internet Gateway** and a route to internet in the route table
+   - Check: EC2 Console → VPC → Route Tables → Look for `0.0.0.0/0` route pointing to Internet Gateway
+   - **Solution:** Ensure your default VPC or create a VPC with internet access
+
+2. **Wait for agent registration:**
+   - SSM Agent can take **2-5 minutes** to register after deployment
+   - Wait a few minutes and refresh the page
+
+3. **Verify IAM Role:**
+   - Instance must have `opcua-server-ec2-ssm-role` attached
+   - Check: EC2 → Instance → Security tab → IAM Role
+
+4. **Alternative - Use VPC Endpoints (no Internet Gateway needed):**
+   - Create these VPC endpoints in your VPC:
+     - `com.amazonaws.REGION.ssm`
+     - `com.amazonaws.REGION.ssmmessages`
+     - `com.amazonaws.REGION.ec2messages`
+   - This allows SSM to work without internet access
+
+**Quick verification (if you have SSH access for debugging):**
+```bash
+sudo systemctl status amazon-ssm-agent
+sudo systemctl restart amazon-ssm-agent
+
+# View SSM logs
+sudo tail -f /var/log/amazon/ssm/amazon-ssm-agent.log
+```
 
 ### Server not responding
 
