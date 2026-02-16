@@ -7,14 +7,13 @@
 
 Automated deployment of an OPC UA demo server on AWS EC2 using **GitHub Actions**. Features simulated real-time variables for testing, learning, and development.
 
-**Operating System:** Amazon Linux 2023 (automatically uses the latest AMI)
+**Operating System:** Amazon Linux 2023
 
 ## 🎯 Features
 
 - **GitHub Actions Deployment** - Automated infrastructure deployment
 - **Manual Installation** - Full control over OPC UA server configuration
 - **AWS Systems Manager (SSM)** - Console-only access (no SSH keys needed)
-- **No Docker Required** - Direct Node.js installation for simplicity
 - **8 Simulated Variables** - Temperature, pressure, RPM, tank level, and more (customizable)
 - **Real-Time Data** - Variables update continuously
 - **Easy Customization** - Modify variables without redeploying infrastructure
@@ -148,13 +147,6 @@ Or use the direct link from CloudFormation Outputs: `SSMConsoleURL`
 - ✅ Works from any browser
 - ✅ IAM-based authentication
 
-### Helper Scripts (on EC2 instance)
-
-```bash
-./check-opcua.sh     # Check server status
-./logs-opcua.sh      # View real-time logs
-./restart-opcua.sh   # Restart the server
-```
 
 ### Systemd Commands
 
@@ -194,10 +186,6 @@ The CloudFormation stack provides these outputs (visible in GitHub Actions logs 
 > **Note**: Remember to delete the stack when not in use to avoid charges.
 
 ## 🧹 Cleanup
-
-### Via GitHub Actions (Recommended)
-
-Run the workflow with the delete/cleanup option
 
 ### Via AWS Console
 

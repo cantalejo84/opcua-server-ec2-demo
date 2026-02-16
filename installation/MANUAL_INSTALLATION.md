@@ -36,10 +36,10 @@ cd /tmp/opcua-install
 
 # Descargar scripts desde GitHub
 # Reemplaza TU-USER y TU-REPO con tu información
-curl -O https://raw.githubusercontent.com/TU-USER/TU-REPO/main/installation/install-opcua.sh
-curl -O https://raw.githubusercontent.com/TU-USER/TU-REPO/main/installation/server.js
-curl -O https://raw.githubusercontent.com/TU-USER/TU-REPO/main/installation/create-certificates.sh
-curl -O https://raw.githubusercontent.com/TU-USER/TU-REPO/main/installation/setup-service.sh
+curl -O https://raw.githubusercontent.com/cantalejo84/opcua-server-ec2-demo/main/installation/install-opcua.sh
+curl -O https://raw.githubusercontent.com/cantalejo84/opcua-server-ec2-demo/main/installation/server.js
+curl -O https://raw.githubusercontent.com/cantalejo84/opcua-server-ec2-demo/main/installation/create-certificates.sh
+curl -O https://raw.githubusercontent.com/cantalejo84/opcua-server-ec2-demo/main/installation/setup-service.sh
 
 # Dar permisos de ejecución
 chmod +x *.sh
